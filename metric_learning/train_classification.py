@@ -17,6 +17,7 @@ from data.inshop import InShop
 from data.stanford_products import StanfordOnlineProducts
 from data.cars196 import Cars196
 from data.cub200 import Cub200
+from data.wineeye import WineEye
 from metric_learning.util import SimpleLogger
 from metric_learning.sampler import ClassBalancedBatchSampler
 
@@ -83,7 +84,7 @@ def main():
     # Setup train and eval transformations
     train_transform = transforms.Compose([
         transforms.Resize((256, 256)),
-        transforms.RandomCrop(max(model.input_size)),
+        # transforms.RandomCrop(max(model.input_size)),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         ToSpaceBGR(model.input_space == 'BGR'),
@@ -92,7 +93,7 @@ def main():
     ])
     eval_transform = transforms.Compose([
         transforms.Resize((256, 256)),
-        transforms.CenterCrop(max(model.input_size)),
+        # transforms.CenterCrop(max(model.input_size)),
         transforms.ToTensor(),
         ToSpaceBGR(model.input_space == 'BGR'),
         ToRange255(max(model.input_range) == 255),
@@ -116,6 +117,9 @@ def main():
         train_dataset = InShop('/data1/data/inshop', transform=train_transform)
         query_dataset = InShop('/data1/data/inshop', train=False, query=True, transform=eval_transform)
         index_dataset = InShop('/data1/data/inshop', train=False, query=False, transform=eval_transform)
+    elif args.dataset == 'WineEye':
+        train_dataset = WineEye('/data1/data/wineeye', transform=train_transform)
+        eval_dataset = WineEye('/data1/data/wineeye', train=False, transform=eval_transform)
     else:
         print("Dataset {} is not supported yet... Abort".format(args.dataset))
         return
@@ -200,12 +204,12 @@ def main():
         eval_file = os.path.join(output_directory, 'epoch_{}'.format(args.pretrain_epochs - epoch))
         if args.dataset != "InShop":
             embeddings, labels = extract_feature(model, eval_loader, gpu_device)
-            evaluate_float_binary_embedding_faiss(embeddings, embeddings, labels, labels, eval_file, k=1000, gpu_id=0)
+            evaluate_float_binary_embedding_faiss(embeddings, embeddings, labels, labels, eval_file, k=1000)
         else:
             query_embeddings, query_labels = extract_feature(model, query_loader, gpu_device)
             index_embeddings, index_labels = extract_feature(model, index_loader, gpu_device)
             evaluate_float_binary_embedding_faiss(query_embeddings, index_embeddings, query_labels, index_labels, eval_file,
-                                                  k=1000, gpu_id=0)
+                                                  k=1000)
 
     # Full end-to-end finetune of all parameters
     opt = torch.optim.SGD(chain(model.parameters(), loss_fn.parameters()), lr=args.lr, momentum=0.9, weight_decay=1e-4)
@@ -245,13 +249,13 @@ def main():
             eval_file = os.path.join(output_directory, 'epoch_{}'.format(epoch + 1))
             if args.dataset != "InShop":
                 embeddings, labels = extract_feature(model, eval_loader, gpu_device)
-                evaluate_float_binary_embedding_faiss(embeddings, embeddings, labels, labels, eval_file, k=1000, gpu_id=0)
+                evaluate_float_binary_embedding_faiss(embeddings, embeddings, labels, labels, eval_file, k=1000)
             else:
                 query_embeddings, query_labels = extract_feature(model, query_loader, gpu_device)
                 index_embeddings, index_labels = extract_feature(model, index_loader, gpu_device)
                 evaluate_float_binary_embedding_faiss(query_embeddings, index_embeddings, query_labels, index_labels,
                                                       eval_file,
-                                                      k=1000, gpu_id=0)
+                                                      k=1000)
 
 if __name__ == '__main__':
     main()

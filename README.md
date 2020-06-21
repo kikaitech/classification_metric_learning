@@ -98,5 +98,10 @@ Binary Features: R@1, R@10, R@100, R@1000: 78.03 & 90.71 & 96.24 & 98.72
 Raw Features: R@1, R@10, R@20, R@30, R@40, R@50: 89.35 & 97.81 & 98.61 & 98.87 & 99.05 & 99.13\
 Binary Features: R@1, R@10, R@20, R@30, R@40, R@50: 88.76 & 97.65 & 98.47 & 98.73 & 98.94 & 99.05
 
+### WineEye
+```
+python2 metric_learning/train_classification.py --dataset WineEye --dim 512 --model_name resnet50 --epochs_per_step 5 --num_steps 1 --test_every_n_epochs 5 --lr 0.001 --lr_mult 1 --class_balancing  --images_per_class 15 --batch_size 30
+```
+
 ## References / re-implementations
 - The Computer Vision Best Practices repository: [02_state_of_the_art.ipynb](https://github.com/microsoft/computervision-recipes/blob/master/scenarios/similarity/02_state_of_the_art.ipynb)

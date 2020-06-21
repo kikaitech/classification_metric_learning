@@ -1,6 +1,6 @@
 import numpy as np
 
-def _retrieve_knn_faiss_gpu_inner_product(query_embeddings, db_embeddings, k, gpu_id=0):
+def _retrieve_knn_faiss_inner_product(query_embeddings, db_embeddings, k):
     """
         Retrieve k nearest neighbor based on inner product
 
@@ -8,7 +8,6 @@ def _retrieve_knn_faiss_gpu_inner_product(query_embeddings, db_embeddings, k, gp
             query_embeddings:           numpy array of size [NUM_QUERY_IMAGES x EMBED_SIZE]
             db_embeddings:              numpy array of size [NUM_DB_IMAGES x EMBED_SIZE]
             k:                          number of nn results to retrieve excluding query
-            gpu_id:                     gpu device id to use for nearest neighbor (if possible for `metric` chosen)
 
         Returns:
             dists:                      numpy array of size [NUM_QUERY_IMAGES x k], distances of k nearest neighbors
@@ -18,12 +17,8 @@ def _retrieve_knn_faiss_gpu_inner_product(query_embeddings, db_embeddings, k, gp
     """
     import faiss
 
-    res = faiss.StandardGpuResources()
-    flat_config = faiss.GpuIndexFlatConfig()
-    flat_config.device = gpu_id
-
     # Evaluate with inner product
-    index = faiss.GpuIndexFlatIP(res, db_embeddings.shape[1], flat_config)
+    index = faiss.IndexFlatIP(db_embeddings.shape[1])
     index.add(db_embeddings)
     # retrieved k+1 results in case that query images are also in the db
     dists, retrieved_result_indices = index.search(query_embeddings, k + 1)
@@ -31,7 +26,7 @@ def _retrieve_knn_faiss_gpu_inner_product(query_embeddings, db_embeddings, k, gp
     return dists, retrieved_result_indices
 
 
-def _retrieve_knn_faiss_gpu_euclidean(query_embeddings, db_embeddings, k, gpu_id=0):
+def _retrieve_knn_faiss_euclidean(query_embeddings, db_embeddings, k):
     """
         Retrieve k nearest neighbor based on inner product
 
@@ -39,7 +34,6 @@ def _retrieve_knn_faiss_gpu_euclidean(query_embeddings, db_embeddings, k, gpu_id
             query_embeddings:           numpy array of size [NUM_QUERY_IMAGES x EMBED_SIZE]
             db_embeddings:              numpy array of size [NUM_DB_IMAGES x EMBED_SIZE]
             k:                          number of nn results to retrieve excluding query
-            gpu_id:                     gpu device id to use for nearest neighbor (if possible for `metric` chosen)
 
         Returns:
             dists:                      numpy array of size [NUM_QUERY_IMAGES x k], distances of k nearest neighbors
@@ -49,12 +43,8 @@ def _retrieve_knn_faiss_gpu_euclidean(query_embeddings, db_embeddings, k, gpu_id
     """
     import faiss
 
-    res = faiss.StandardGpuResources()
-    flat_config = faiss.GpuIndexFlatConfig()
-    flat_config.device = gpu_id
-
     # Evaluate with inner product
-    index = faiss.GpuIndexFlatL2(res, db_embeddings.shape[1], flat_config)
+    index = faiss.IndexFlatL2(db_embeddings.shape[1])
     index.add(db_embeddings)
     # retrieved k+1 results in case that query images are also in the db
     dists, retrieved_result_indices = index.search(query_embeddings, k + 1)
@@ -107,7 +97,7 @@ def evaluate_recall_at_k(dists, results, query_labels, db_labels, k):
 
 
 def evaluate_float_binary_embedding_faiss(query_embeddings, db_embeddings, query_labels, db_labels,
-                                          output, k=1000, gpu_id=0):
+                                          output, k=1000):
     """
         Wrapper function to evaluate Recall@k for float and binary embeddings
         output recall@k strings for Cars, CUBS, Stanford Online Product, and InShop datasets
@@ -115,10 +105,9 @@ def evaluate_float_binary_embedding_faiss(query_embeddings, db_embeddings, query
 
     # ======================== float embedding evaluation ==========================================================
     # knn retrieval from embeddings (l2 normalized embedding + inner product = cosine similarity)
-    dists, retrieved_result_indices = _retrieve_knn_faiss_gpu_inner_product(query_embeddings,
+    dists, retrieved_result_indices = _retrieve_knn_faiss_inner_product(query_embeddings,
                                                                             db_embeddings,
-                                                                            k,
-                                                                            gpu_id=gpu_id)
+                                                                            k)
 
     # evaluate recall@k
     r_at_k_f = evaluate_recall_at_k(dists, retrieved_result_indices, query_labels, db_labels, k)
@@ -144,10 +133,9 @@ def evaluate_float_binary_embedding_faiss(query_embeddings, db_embeddings, query
     binary_db_embeddings = np.require(db_embeddings > 0, dtype='float32')
 
     # knn retrieval from embeddings (binary embeddings + euclidean = hamming distance)
-    dists, retrieved_result_indices = _retrieve_knn_faiss_gpu_euclidean(binary_query_embeddings,
+    dists, retrieved_result_indices = _retrieve_knn_faiss_euclidean(binary_query_embeddings,
                                                                         binary_db_embeddings,
-                                                                        k,
-                                                                        gpu_id=gpu_id)
+                                                                        k)
     # evaluate recall@k
     r_at_k_b = evaluate_recall_at_k(dists, retrieved_result_indices, query_labels, db_labels, k)
 
